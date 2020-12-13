@@ -1,0 +1,9 @@
+[submodule "eris"]
+	path = eris
+	url = https://gitlab.com/openengiadina/eris.git
+[submodule "src/eris/private/chacha20"]
+	path = src/eris/private/chacha20
+	url = https://git.sr.ht/~ehmry/chacha20
+[submodule "src/eris/private/blake2"]
+	path = src/eris/private/blake2
+	url = https://github.com/ehmry/blake2.git
