@@ -11,3 +11,8 @@ cd eris
 nim c -d:release -r tests/test_small
 nim c -d:release -r tests/test_large
 ```
+
+## Todo
+* Optimise the Chacha20 and BLAKE2 implementations
+* Asynchronise the API for block storage
+* Block size selection helpers
