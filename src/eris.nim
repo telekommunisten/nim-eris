@@ -16,7 +16,7 @@ type
   Pair {.packed.} = object
     r: Reference
     k: Key
-  ReadCap* = object
+  Cap* = object
     pair*: Pair
     level*: int
     blockSize*: int
@@ -26,7 +26,7 @@ assert(sizeOf(Pair) == 64)
 proc `$`*(x: Reference|Key|Secret): string =
   base32.encode(cast[array[32, char]](x.bytes), pad=false)
 
-proc `$`*(cap: ReadCap): string =
+proc `$`*(cap: Cap): string =
   var tmp = newSeqOfCap[byte](1+1+32+32)
   let bs =
     case cap.blockSize
@@ -45,7 +45,7 @@ proc parseSecret*(s: string): Secret =
     raise newException(ValueError, "invalid convergence-secret")
   copyMem(result.bytes[0].addr, buf[0].addr, result.bytes.len)
 
-proc parseReadCap*(bin: openArray[char]): ReadCap =
+proc parseCap*(bin: openArray[char]): Cap =
   assert(bin.len == 66)
   result.blockSize =
     case bin[0].byte
@@ -58,18 +58,15 @@ proc parseReadCap*(bin: openArray[char]): ReadCap =
   copyMem(addr result.pair.r.bytes[0], unsafeAddr bin[2], 32)
   copyMem(addr result.pair.k.bytes[0], unsafeAddr bin[34], 32)
 
-proc parseErisUrn*(urn: string): ReadCap =
+proc parseErisUrn*(urn: string): Cap =
   let parts = urn.split(':')
   if 3 <= parts.len:
     if parts[0] == "urn":
       if parts[1] == "erisx2":
         if parts[2].len >= 106:
           let bin = base32.decode(parts[2][0..105])
-          return parseReadCap(bin)
+          return parseCap(bin)
   raise newException(ValueError, "invalid ERIS URN encoding")
-
-proc readCap*(str: Stream): ReadCap =
-  discard
 
 proc encryptBlock(secret: Secret; blk: var openarray[byte]): Pair =
   var
@@ -163,7 +160,7 @@ proc collectRkPairs(store: Store; blockSize: Natural; secret: Secret; pairs: seq
     store.put(pair.r, blk)
     result.add(pair)
 
-proc encode*(store: Store; blockSize: Natural; secret: Secret; content: Stream): ReadCap =
+proc encode*(store: Store; blockSize: Natural; secret: Secret; content: Stream): Cap =
   var pairs = splitContent(store, blockSize, secret, content)
   while pairs.len > 1:
     pairs = collectRkPairs(store, blockSize, secret, pairs)
@@ -171,7 +168,7 @@ proc encode*(store: Store; blockSize: Natural; secret: Secret; content: Stream):
   result.pair = pairs[0]
   result.blockSize = blockSize
 
-proc encode*(store: Store; blockSize: Natural; secret: Secret; content: string): ReadCap =
+proc encode*(store: Store; blockSize: Natural; secret: Secret; content: string): Cap =
   encode(store, blockSize, secret, newStringStream(content))
 
 iterator rk(blk: openarray[byte]): Pair =
@@ -203,7 +200,7 @@ proc unpad(blk: var seq[byte]) =
     else: break
   raise newException(ValueError, "invalid ERIS block padding")
 
-proc decode*(store: Store; secret: Secret; cap: ReadCap): seq[byte] =
+proc decode*(store: Store; secret: Secret; cap: Cap): seq[byte] =
   result = newSeq[byte]()
   decodeRecursive(store, cap.blockSize, secret, cap.level, cap.pair, result)
   unpad(result)
