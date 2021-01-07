@@ -1,6 +1,6 @@
 import eris, ./stores
 import base32
-import json, os, unittest
+import json, os, streams, unittest
 
 suite "encode":
   for path in walkPattern("eris/test-vectors/*.json"):
@@ -30,7 +30,9 @@ suite "decode":
       let
         cap = parseErisUrn(urn)
         secret = parseSecret(js["convergence-secret"].getStr)
-        data = cast[seq[byte]](base32.decode(js["content"].getStr))
+        b = base32.decode(js["content"].getStr)
         store = newJsonStore(js)
-      let testData = store.decode(secret, cap)
-      check(testData == data)
+        stream = newErisStream(store, secret, cap)
+      let a = stream.readAll()
+      check(a.len == b.len)
+      assert(a == b, "decode mismatch")
