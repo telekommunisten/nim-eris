@@ -1,5 +1,5 @@
 import eris, ./stores, eris/private/chacha20/src/chacha20, eris/private/blake2/blake2
-import streams, unittest
+import asyncdispatch, streams, unittest
 
 suite "streaming":
 
@@ -51,5 +51,5 @@ suite "streaming":
       checkpoint t[0]
       var
         str = newTestStream(t[0], t[1])
-        cap = store.encode(t[2], secret, str)
+        cap = waitFor store.encode(t[2], secret, str)
       check($cap == t[3])

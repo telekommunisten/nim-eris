@@ -1,6 +1,6 @@
 import eris, ./stores
 import base32
-import json, os, streams, unittest
+import asyncdispatch, json, os, unittest, strutils
 
 suite "encode":
   for path in walkPattern("eris/test-vectors/*.json"):
@@ -16,7 +16,7 @@ suite "encode":
         data = base32.decode(js["content"].getStr)
         store = newDiscardStore()
 
-      let testCap = store.encode(cap.blockSize, secret, data)
+      let testCap = waitFor store.encode(cap.blockSize, secret, data)
       check($testCap == urn)
 
 suite "decode":
@@ -33,6 +33,7 @@ suite "decode":
         b = base32.decode(js["content"].getStr)
         store = newJsonStore(js)
         stream = newErisStream(store, secret, cap)
-      let a = stream.readAll()
+      let a = waitFor stream.readAll()
       check(a.len == b.len)
+      check(a.toHex == b.toHex)
       assert(a == b, "decode mismatch")
