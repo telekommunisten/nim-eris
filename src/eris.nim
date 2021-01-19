@@ -28,6 +28,13 @@ proc `$`*(x: Reference|Key|Secret): string =
 
 proc `==`*(x, y: Cap): bool = x.pair.r.bytes == y.pair.r.bytes
 
+proc reference*(data: openarray[byte]): Reference =
+  assert(data.len in {1 shl 10, 32 shl 10})
+  var ctx: Blake2b
+  ctx.init(32)
+  ctx.update(data)
+  ctx.final(result.bytes)
+
 proc toBase32*(cap: Cap): string =
   var tmp = newSeqOfCap[byte](1+1+32+32)
   let bs =
