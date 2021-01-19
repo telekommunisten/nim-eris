@@ -1,6 +1,6 @@
 import eris, ./stores
 import base32
-import asyncdispatch, json, os, unittest, strutils
+import asyncdispatch, json, os, unittest
 
 suite "encode":
   for path in walkPattern("eris/test-vectors/*.json"):

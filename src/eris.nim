@@ -117,13 +117,9 @@ type
   Store* = ref StoreObj
   StoreObj* = object of RootObj
     getImpl*: proc (s: Store; r: Reference): Future[seq[byte]] {.nimcall, gcsafe.}
-    putImpl*: proc (s: Store; r: Reference; b: openarray[byte]): Future[void] {.nimcall, gcsafe.}
+    putImpl*: proc (s: Store; r: Reference; b: seq[byte]): Future[void] {.nimcall, gcsafe.}
 
-type
-  DiscardStore = ref DiscardStoreObj
-  DiscardStoreObj = object of StoreObj
-
-proc discardPut(s: Store; r: Reference; b: openarray[byte]): Future[void] =
+proc discardPut(s: Store; r: Reference; b: seq[byte]): Future[void] =
   result = newFuture[void]("discardPut")
   result.complete()
 
@@ -131,7 +127,7 @@ proc newDiscardStore*(): Store =
   new(result)
   result.putImpl = discardPut
 
-proc put*(store: Store; r: Reference; b: openarray[byte]): Future[void] =
+proc put*(store: Store; r: Reference; b: seq[byte]): Future[void] =
   # TODO:
   #   - async
   #   - caller encrypts a private buffer to a store buffer
@@ -280,7 +276,7 @@ proc setPosition*(s: ErisStream; pos: int) =
   s.pos = pos
 
 proc getPosition*(s: ErisStream): int =
-  ErisStream(s).pos.int
+  s.pos.int
 
 proc readBuffer(s: ErisStream; buffer: pointer; bufLen: int): Future[int] {.async.} =
   if s.leaves == @[]: await init(s)
