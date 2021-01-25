@@ -1,0 +1,57 @@
+{
+  "nodes": {
+    "nimble": {
+      "inputs": {
+        "nixpkgs": "nixpkgs"
+      },
+      "locked": {
+        "lastModified": 1611139406,
+        "narHash": "sha256-gCg+BwOTrn1k+GF0UvOCV1FkfTWJNbGDayHKSYYzC5Q=",
+        "owner": "nix-community",
+        "repo": "flake-nimble",
+        "rev": "59c05df2fa278dfb4d21e5450bf3dd5b8197430f",
+        "type": "github"
+      },
+      "original": {
+        "id": "nimble",
+        "type": "indirect"
+      }
+    },
+    "nixpkgs": {
+      "locked": {
+        "lastModified": 1607766819,
+        "narHash": "sha256-bluEp6ld6wmpeLl5MQPQOpxWMDLnUYyQNEk2rMlAyiU=",
+        "owner": "NixOS",
+        "repo": "nixpkgs",
+        "rev": "f448ec33655c48d7306456bee77f3cdabf3757fa",
+        "type": "github"
+      },
+      "original": {
+        "id": "nixpkgs",
+        "type": "indirect"
+      }
+    },
+    "nixpkgs_2": {
+      "locked": {
+        "lastModified": 1611573985,
+        "narHash": "sha256-/99tW/FVulTati8qgvS5ul4/aQDCWHkEFAR7adXZ6BY=",
+        "owner": "NixOS",
+        "repo": "nixpkgs",
+        "rev": "cc75b0e3b55646c141efa10fcf8c81f55daf8a9a",
+        "type": "github"
+      },
+      "original": {
+        "id": "nixpkgs",
+        "type": "indirect"
+      }
+    },
+    "root": {
+      "inputs": {
+        "nimble": "nimble",
+        "nixpkgs": "nixpkgs_2"
+      }
+    }
+  },
+  "root": "root",
+  "version": 7
+}
