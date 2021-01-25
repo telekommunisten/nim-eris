@@ -17,6 +17,7 @@
           version = "unstable-" + self.lastModifiedDate;
           src = self;
           nativeBuildInputs = [ nimpkgs.nim ];
+          buildInputs = [ lmdb ];
         });
 
     };
