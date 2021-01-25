@@ -6,6 +6,8 @@ import base32, eris/private/chacha20/src/chacha20, eris/private/blake2/blake2
 
 import asyncdispatch, asyncfutures, math, streams, strutils
 
+const erisCborTag* = 276
+
 type
   Reference* = object
     bytes*: array[32, byte]
@@ -27,6 +29,13 @@ proc `$`*(x: Reference|Key|Secret): string =
   base32.encode(cast[array[32, char]](x.bytes), pad = false)
 
 proc `==`*(x, y: Cap): bool = x.pair.r.bytes == y.pair.r.bytes
+
+proc reference*(data: openarray[byte]): Reference =
+  assert(data.len in {1 shl 10, 32 shl 10})
+  var ctx: Blake2b
+  ctx.init(32)
+  ctx.update(data)
+  ctx.final(result.bytes)
 
 proc toBase32*(cap: Cap): string =
   var tmp = newSeqOfCap[byte](1+1+32+32)
@@ -110,13 +119,9 @@ type
   Store* = ref StoreObj
   StoreObj* = object of RootObj
     getImpl*: proc (s: Store; r: Reference): Future[seq[byte]] {.nimcall, gcsafe.}
-    putImpl*: proc (s: Store; r: Reference; b: openarray[byte]): Future[void] {.nimcall, gcsafe.}
+    putImpl*: proc (s: Store; r: Reference; b: seq[byte]): Future[void] {.nimcall, gcsafe.}
 
-type
-  DiscardStore = ref DiscardStoreObj
-  DiscardStoreObj = object of StoreObj
-
-proc discardPut(s: Store; r: Reference; b: openarray[byte]): Future[void] =
+proc discardPut(s: Store; r: Reference; b: seq[byte]): Future[void] =
   result = newFuture[void]("discardPut")
   result.complete()
 
@@ -124,10 +129,7 @@ proc newDiscardStore*(): Store =
   new(result)
   result.putImpl = discardPut
 
-proc put*(store: Store; r: Reference; b: openarray[byte]): Future[void] =
-  # TODO:
-  #   - async
-  #   - caller encrypts a private buffer to a store buffer
+proc put*(store: Store; r: Reference; b: seq[byte]): Future[void] =
   assert(not store.putImpl.isNil)
   store.putImpl(store, r, b)
 
@@ -136,16 +138,13 @@ proc put*(store: Store; secret: Secret; blk: seq[byte]): Future[Pair] {.async.} 
   await store.put(pair.r, buf)
   return pair
 
-proc get*(store: Store; blockSize: Natural; r: Reference; ): Future[seq[byte]] =
-  # TODO:
-  #   - async
-  #   - caller decrypts a store buffer to a private buffer
+proc get*(store: Store; r: Reference; ): Future[seq[byte]] =
   assert(not store.getImpl.isNil)
   store.getImpl(store, r)
-  # TODO: assert(buf.len == blockSize, "ERIS block size mismatch"))
 
 proc get*(store: Store; blockSize: Natural; secret: Secret; pair: Pair): Future[seq[byte]] {.async.} =
-  var blk = await get(store, blockSize, pair.r)
+  var blk = await get(store, pair.r)
+  assert(blk.len == blockSize)
   decryptBlock(secret, pair.k, blk)
   return blk
 
@@ -273,7 +272,7 @@ proc setPosition*(s: ErisStream; pos: int) =
   s.pos = pos
 
 proc getPosition*(s: ErisStream): int =
-  ErisStream(s).pos.int
+  s.pos.int
 
 proc readBuffer(s: ErisStream; buffer: pointer; bufLen: int): Future[int] {.async.} =
   if s.leaves == @[]: await init(s)
