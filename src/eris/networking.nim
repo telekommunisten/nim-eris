@@ -27,9 +27,9 @@ type
     p: Peer
 
   ErisBroker* = ref ErisBrokerObj
-  ErisBrokerObj = object of StoreObj
+  ErisBrokerObj = object of ErisStoreObj
     ## Networked block broker object
-    store: Store
+    store: ErisStore
     listener: Listener
     ready: Future[void]
     gets: Deque[Get]
@@ -41,11 +41,11 @@ using
   broker: ErisBroker
   peer: Peer
 
-proc brokerPut(s: Store; r: Reference; blk: seq[byte]): Future[void] =
+proc brokerPut(s: ErisStore; r: Reference; blk: seq[byte]): Future[void] =
   var s = ErisBroker(s)
   s.store.put(r, blk)
 
-proc brokerGet(s: Store; r: Reference): Future[seq[byte]] =
+proc brokerGet(s: ErisStore; r: Reference): Future[seq[byte]] =
   var
     s = ErisBroker(s)
     rf = newFuture[seq[byte]]("brokerGet")
@@ -108,7 +108,7 @@ proc initializeConnection(broker; conn: Connection; serving: bool) =
     else:
       conn.abort()
 
-proc newErisBroker*(store: Store; lp: LocalSpecifier): ErisBroker =
+proc newErisBroker*(store: ErisStore; lp: LocalSpecifier): ErisBroker =
   # Create a new ERIS network broker.
   var
     preconn = newPreconnection(local = some(lp), transport = some(erisTransport()))
@@ -124,13 +124,13 @@ proc newErisBroker*(store: Store; lp: LocalSpecifier): ErisBroker =
     conn.receiveMsg()
   broker
 
-proc newErisBroker*(store: Store; hostName: string): ErisBroker =
+proc newErisBroker*(store: ErisStore; hostName: string): ErisBroker =
   var ep = newLocalEndpoint()
   ep.withHostname hostName
   ep.with Port(standardPort)
   newErisBroker(store, ep)
 
-proc newErisBroker*(store: Store; address: IpAddress): ErisBroker =
+proc newErisBroker*(store: ErisStore; address: IpAddress): ErisBroker =
   var ep = newLocalEndpoint()
   ep.with address
   ep.with Port(standardPort)
