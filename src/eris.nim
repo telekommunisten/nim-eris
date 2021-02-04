@@ -157,6 +157,8 @@ proc get*(store; blockSize: Natural; secret; pair): Future[seq[byte]] {.async.} 
   decryptBlock(secret, pair.k, blk)
   return blk
 
+proc get*(store; cap): Future[seq[byte]] = get(store, cap.pair.r)
+
 proc splitContent(store; blockSize: Natural; secret; content: Stream): Future[
     seq[Pair]] {.async.} =
   var
