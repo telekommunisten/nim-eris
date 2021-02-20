@@ -33,6 +33,8 @@ suite "decode":
         b = base32.decode(js["content"].getStr)
         store = newJsonStore(js)
         stream = newErisStream(store, secret, cap)
+        streamLength = waitFor stream.length()
+      check((streamLength - b.len) <= cap.blockSize)
       let a = waitFor stream.readAll()
       check(a.len == b.len)
       check(a.toHex == b.toHex)

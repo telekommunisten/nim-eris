@@ -282,11 +282,19 @@ proc atEnd*(s: ErisStream): bool =
   s.leaves.len * s.cap.blockSize < s.pos
     # TODO: padding?
 
-proc setPosition*(s: ErisStream; pos: int) =
+proc setPosition*(s: ErisStream; pos: BiggestInt) =
   s.pos = pos
 
-proc getPosition*(s: ErisStream): int =
-  s.pos.int
+proc getPosition*(s: ErisStream): BiggestInt =
+  s.pos
+
+proc length*(s: ErisStream): Future[BiggestInt] =
+  ## Estimate the length of stream ``s``.
+  ## The result is the length of ``s`` rounded up to the next block boundary.
+  let fut = newFuture[BiggestInt]("ErisStream.length")
+  init(s).addCallback do ():
+    fut.complete(s.leaves.len.BiggestInt * s.cap.blockSize.BiggestInt)
+  fut
 
 proc readBuffer*(s: ErisStream; buffer: pointer; bufLen: int): Future[int] {.async.} =
   if s.leaves == @[]: await init(s)
