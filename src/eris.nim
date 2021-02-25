@@ -78,7 +78,7 @@ proc parseCap*(bin: openArray[char]): Cap =
   copyMem(addr result.pair.r.bytes[0], unsafeAddr bin[2], 32)
   copyMem(addr result.pair.k.bytes[0], unsafeAddr bin[34], 32)
 
-proc parseErisUrn*(urn: string): Cap =
+proc parseErisUrn*(urn: string|TaintedString): Cap =
   let parts = urn.split(':')
   if 3 <= parts.len:
     if parts[0] == "urn":
@@ -134,9 +134,14 @@ proc discardPut(store; r: Reference; b: seq[byte]): Future[void] =
   result = newFuture[void]("discardPut")
   result.complete()
 
+proc discardGet(store; r: Reference): Future[seq[byte]] =
+  result = newFuture[seq[byte]]("discardGet")
+  result.fail(newException(KeyError, "ERIS reference not found"))
+
 proc newDiscardStore*(): ErisStore =
   new(result)
   result.putImpl = discardPut
+  result.getImpl = discardGet
 
 proc put*(store; r: Reference; b: seq[byte]): Future[void] =
   assert(not store.putImpl.isNil)
@@ -318,8 +323,8 @@ proc readBuffer*(s: ErisStream; buffer: pointer; bufLen: int): Future[int] {.asy
     inc(s.pos, n)
   return bufOff
 
-proc read*(s: ErisStream; size: int): Future[string] {.async.} =
-  var buf = newString(size)
+proc read*(s: ErisStream; size: int): Future[seq[byte]] {.async.} =
+  var buf = newSeq[byte](size)
   let n = await s.readBuffer(buf[0].addr, buf.len)
   buf.setLen(n)
   return buf
@@ -352,10 +357,10 @@ proc readDataStr*(s: ErisStream; buffer: var string; slice: Slice[int]): Future[
 proc readAll*(s: ErisStream): Future[string] {.async.} =
   ## Reads all data from the specified file.
   while true:
-    let data = await read(s, 32 shl 10)
+    let data = await read(s, s.cap.blockSize)
     if data.len == 0:
       return
-    result.add data
+    result.add(cast[string](data))
 
 proc newErisStream*(store; cap; secret = Secret()): owned ErisStream =
   ## Open a new stream for reading ERIS data.
