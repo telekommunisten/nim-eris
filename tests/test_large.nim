@@ -52,5 +52,5 @@ suite "streaming":
       checkpoint t[0]
       var
         str = newTestStream(t[0], t[1])
-        cap = waitFor store.encode(t[2], secret, str)
+        cap = waitFor store.encode(t[2], str, secret)
       check($cap == t[3])

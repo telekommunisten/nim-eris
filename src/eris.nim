@@ -142,16 +142,17 @@ proc put*(store; r: Reference; b: seq[byte]): Future[void] =
   assert(not store.putImpl.isNil)
   store.putImpl(store, r, b)
 
-proc put*(store; secret; blk: seq[byte]): Future[Pair] {.async.} =
+proc put*(store; blk: seq[byte]; secret = Secret()): Future[Pair] {.async.} =
   let (pair, buf) = encryptBlock(secret, blk)
   await store.put(pair.r, buf)
   return pair
 
-proc get*(store; r: Reference; ): Future[seq[byte]] =
+proc get*(store; r: Reference): Future[seq[byte]] =
   assert(not store.getImpl.isNil)
   store.getImpl(store, r)
 
-proc get*(store; blockSize: Natural; secret; pair): Future[seq[byte]] {.async.} =
+proc get*(store; blockSize: Natural; pair; secret = Secret()):
+    Future[seq[byte]] {.async.} =
   var blk = await get(store, pair.r)
   assert(blk.len == blockSize)
   decryptBlock(secret, pair.k, blk)
@@ -159,8 +160,8 @@ proc get*(store; blockSize: Natural; secret; pair): Future[seq[byte]] {.async.} 
 
 proc get*(store; cap): Future[seq[byte]] = get(store, cap.pair.r)
 
-proc splitContent(store; blockSize: Natural; secret; content: Stream): Future[
-    seq[Pair]] {.async.} =
+proc splitContent(store; blockSize: Natural; secret; content: Stream):
+    Future[seq[Pair]] {.async.} =
   var
     pairs = newSeq[Pair]()
     blk = newSeq[byte](blockSize)
@@ -175,16 +176,16 @@ proc splitContent(store; blockSize: Natural; secret; content: Stream): Future[
       blk.setLen(blockSize)
       blk[i] = 0x80
       padded = true
-    pairs.add(await store.put(secret, blk))
+    pairs.add(await store.put(blk, secret))
   if not padded:
     blk.setLen(1) # zero all but the first byte
     blk[0] = 0x80
     blk.setLen(blockSize)
-    pairs.add(await store.put(secret, blk))
+    pairs.add(await store.put(blk, secret))
   return pairs
 
-proc collectRkPairs(store; blockSize: Natural; secret; pairs: seq[
-    Pair]): Future[seq[Pair]] {.async.} =
+proc collectRkPairs(store; blockSize: Natural; secret; pairs: seq[Pair]):
+    Future[seq[Pair]] {.async.} =
   let arity = blockSize div 64
   var
     next = newSeqOfCap[Pair](pairs.len div 2)
@@ -202,7 +203,8 @@ proc collectRkPairs(store; blockSize: Natural; secret; pairs: seq[
   assert(next.len > 0)
   return next
 
-proc encode*(store; blockSize: Natural; secret; content: Stream): Future[Cap] {.async.} =
+proc encode*(store; blockSize: Natural; content: Stream; secret = Secret()):
+    Future[Cap] {.async.} =
   var
     cap = Cap(blockSize: blockSize)
     pairs = await splitContent(store, blockSize, secret, content)
@@ -212,12 +214,12 @@ proc encode*(store; blockSize: Natural; secret; content: Stream): Future[Cap] {.
   cap.pair = pairs[0]
   return cap
 
-proc encode*(store; blockSize: Natural; secret; content: string): Future[Cap] =
-  encode(store, blockSize, secret, newStringStream(content))
+proc encode*(store; blockSize: Natural; content: string; secret = Secret()): Future[Cap] =
+  encode(store, blockSize, newStringStream(content), secret)
 
 proc erisCap*(blockSize: Natural; secret; content: string): Cap =
   var store = newDiscardStore()
-  waitFor encode(store, blockSize, secret, newStringStream(content))
+  waitFor encode(store, blockSize, newStringStream(content), secret)
     # DiscardStore will complete this immediately
 
 iterator rk(blk: openarray[byte]): Pair =
@@ -232,14 +234,14 @@ iterator rk(blk: openarray[byte]): Pair =
 
 proc decodeRecursive(store; blockSize: Natural; secret; level: Natural; pair;
     buf: var seq[byte]): Future[void] {.async.} =
-  var blk = await store.get(blockSize, secret, pair)
+  var blk = await store.get(blockSize, pair, secret)
   if level == 0:
     buf.add(blk)
   else:
     for pair in blk.rk:
       await decodeRecursive(store, blockSize, secret, level.pred, pair, buf)
 
-proc decode*(store; secret; cap): Future[seq[byte]] {.async.} =
+proc decode*(store; cap; secret = Secret()): Future[seq[byte]] {.async.} =
   var buf = newSeq[byte]()
   await decodeRecursive(store, cap.blockSize, secret, cap.level, cap.pair, buf)
   return unpad(buf)
@@ -264,7 +266,7 @@ proc init(s: ErisStream) {.async.} =
       # TODO: math?
     proc expand(level: Natural; pair: Pair) {.async.} =
       # Expand on the stack
-      let blk = await s.store.get(s.cap.blockSize, s.secret, pair)
+      let blk = await s.store.get(s.cap.blockSize, pair, s.secret)
       if level == 1:
         for p in blk.rk:
           s.leaves.add(p)
@@ -304,7 +306,7 @@ proc readBuffer*(s: ErisStream; buffer: pointer; bufLen: int): Future[int] {.asy
     bufOff: int
   while bufOff < bufLen and bNum < s.leaves.len:
     var
-      blk = await s.store.get(s.cap.blockSize, s.secret, s.leaves[bNum])
+      blk = await s.store.get(s.cap.blockSize, s.leaves[bNum], s.secret)
       blkOff = s.pos.int and s.cap.blockSize.pred
     if bNum == s.leaves.high:
       blk = unpad(blk)
@@ -331,7 +333,7 @@ proc readLine*(s: ErisStream): Future[TaintedString] {.async.} =
   line.setLen(0)
   while true:
     var
-      blk = await s.store.get(s.cap.blockSize, s.secret, s.leaves[bNum])
+      blk = await s.store.get(s.cap.blockSize, s.leaves[bNum], s.secret)
       blkOff = line.len and s.cap.blockSize.pred
     if bNum == s.leaves.high:
       blk = unpad(blk)
@@ -355,8 +357,8 @@ proc readAll*(s: ErisStream): Future[string] {.async.} =
       return
     result.add data
 
-proc newErisStream*(store; secret; cap): owned ErisStream =
-  ## Open a new stream for reading ERIS data
+proc newErisStream*(store; cap; secret = Secret()): owned ErisStream =
+  ## Open a new stream for reading ERIS data.
   result = ErisStream(
     store: store,
     secret: secret,

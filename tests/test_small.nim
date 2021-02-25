@@ -16,7 +16,7 @@ suite "encode":
         data = base32.decode(js["content"].getStr)
         store = newDiscardStore()
 
-      let testCap = waitFor store.encode(cap.blockSize, secret, data)
+      let testCap = waitFor store.encode(cap.blockSize, data, secret)
       check($testCap == urn)
 
 suite "decode":
@@ -32,7 +32,7 @@ suite "decode":
         secret = parseSecret(js["convergence-secret"].getStr)
         b = base32.decode(js["content"].getStr)
         store = newJsonStore(js)
-        stream = newErisStream(store, secret, cap)
+        stream = newErisStream(store, cap, secret)
         streamLength = waitFor stream.length()
       check((streamLength - b.len) <= cap.blockSize)
       let a = waitFor stream.readAll()
