@@ -1,7 +1,9 @@
 import eris, taps
 import std/asyncfutures, std/deques, std/net, std/options
 
-const standardPort* = 2021
+const
+  standardPort* = 2021
+  erisStandardPort* = Port(2021)
 
 proc erisTransport(): TransportProperties =
   ## A UDP transport profile
@@ -51,13 +53,16 @@ proc brokerGet(s: ErisStore; r: Reference): Future[seq[byte]] =
     rf = newFuture[seq[byte]]("brokerGet")
   s.store.get(r).addCallback do (lf: Future[seq[byte]]):
     if not lf.failed:
-      rf.complete(lf.read())
+      let blk = lf.read()
+      rf.complete(blk)
     else:
-      assert(s.peers.len > 0)
-      let peer = s.peers[0]
-      peer.ready.addCallback do ():
-        s.gets.addLast Get(f: rf, r: r, p: peer)
-        peer.conn.send(s.gets.peekLast.r.bytes)
+      if s.peers.len > 0:
+        let peer = s.peers[0]
+        peer.ready.addCallback do ():
+          s.gets.addLast Get(f: rf, r: r, p: peer)
+          peer.conn.send(s.gets.peekLast.r.bytes)
+      else:
+        rf.fail(newException(IOError, "no peers to request data from"))
   rf
 
 proc initializeConnection(broker; conn: Connection; serving: bool) =
@@ -153,3 +158,11 @@ proc addPeer*(broker; address: IpAddress) =
   ep.with address
   ep.with Port(standardPort)
   broker.addPeer(ep)
+
+proc close*(broker) =
+  ## Shutdown ``broker``.
+  assert(not broker.listener.isNil)
+  stop(broker.listener)
+  for peer in broker.peers:
+    close(peer.conn)
+  reset(broker.peers)
