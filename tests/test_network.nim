@@ -1,4 +1,4 @@
-import eris, eris/networking, ./stores
+import eris, eris/networking, eris/stores
 import base32, taps
 import asyncdispatch, json, net, os, unittest
 

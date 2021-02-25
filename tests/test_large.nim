@@ -1,4 +1,4 @@
-import eris, ./stores, eris/private/chacha20/src/chacha20, eris/private/blake2/blake2
+import eris, eris/private/chacha20/src/chacha20, eris/private/blake2/blake2
 import asyncdispatch, streams, unittest
 
 suite "streaming":
@@ -48,6 +48,7 @@ suite "streaming":
     store = newDiscardStore()
   for i, t in tests:
     test $i:
+      echo "This could take a long time…"
       checkpoint t[0]
       var
         str = newTestStream(t[0], t[1])

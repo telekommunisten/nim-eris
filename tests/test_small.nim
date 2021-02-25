@@ -1,4 +1,4 @@
-import eris, ./stores
+import eris, ./jsonstores
 import base32
 import asyncdispatch, json, os, unittest, strutils
 
