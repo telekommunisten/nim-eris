@@ -6,11 +6,11 @@ const
   erisStandardPort* = Port(2021)
 
 proc erisTransport(): TransportProperties =
-  ## A UDP transport profile
+  ## A TCP transport profile
   result = newTransportProperties()
-  result.ignore("reliability")
-  result.ignore("congestion-control")
-  result.ignore("preserve-order")
+  result.require("congestion-control")
+  result.require("preserve-order")
+  result.require("reliability")
 
 proc receiveMsg(conn: Connection) {.inline.} =
   ## Receive a message that is between 32B and 32KiB.

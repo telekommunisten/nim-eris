@@ -1,14 +1,20 @@
 import eris, eris/networking, eris/stores
 import base32, taps
-import asyncdispatch, json, net, os, unittest
+import asyncdispatch, json, net, os, random, unittest
 
 from std/net import Port
 
+randomize()
+
+proc randomPort(): Port =
+  while result.uint < 1024: # Fuck UNIX
+    result = Port(rand(1 shl 16))
+
 let
-  ipAddr = parseIpAddress"127.0.0.1"
-  alicePort = Port(2022)
-  bobPort = Port(2023)
-  carolPort = Port(2024)
+  ipAddr = parseIpAddress"::1"
+  alicePort = randomPort()
+  bobPort = randomPort()
+  carolPort = randomPort()
 var
   aliceLocal = newLocalEndpoint()
   carolLocal = newLocalEndpoint()
