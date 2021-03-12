@@ -1,24 +1,17 @@
 {
   description = "Encoding for Robust Immutable Storage";
-
-  outputs = { self, nixpkgs, nimble }:
+  outputs = { self, nimble }:
     let
       systems = [ "aarch64-linux" "x86_64-linux" ];
-      forAllSystems = f: nixpkgs.lib.genAttrs systems (system: f system);
+      forAllSystems = nimble.inputs.nixpkgs.lib.genAttrs systems;
     in {
 
       defaultPackage = forAllSystems (system:
-        let
-          pkgs = nixpkgs.legacyPackages.${system};
-          nimpkgs = nimble.packages.${system};
-        in with pkgs;
-        stdenv.mkDerivation {
-          pname = "eris";
+        let nimpkgs = nimble.packages.${system};
+        in nimpkgs.eris.overrideAttrs (attrs: {
           version = "unstable-" + self.lastModifiedDate;
           src = self;
-          nativeBuildInputs = [ nimpkgs.nim ];
-          buildInputs = [ lmdb ];
-        });
+        }));
 
     };
 }
