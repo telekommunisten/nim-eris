@@ -58,7 +58,9 @@ proc brokerGet(s: ErisStore; r: Reference): Future[seq[byte]] =
     else:
       if s.peers.len > 0:
         let peer = s.peers[0]
+        echo "got a peer, wait for ready callback"
         peer.ready.addCallback do ():
+          echo "peer is ready, request ", r
           s.gets.addLast Get(f: rf, r: r, p: peer)
           peer.conn.send(s.gets.peekLast.r.bytes)
       else:
@@ -72,6 +74,7 @@ proc initializeConnection(broker; conn: Connection; serving: bool) =
       # alternate between sending and receiving datagrams
   conn.onReceived do (data: seq[byte]; ctx: MessageContext):
     # Dispatch a received datagram
+    echo "received a ", data.len, " byte message from peer"
     case data.len
     of sizeof(Reference):
       var r: Reference
@@ -148,7 +151,9 @@ proc addPeer*(broker; remote: RemoteSpecifier) =
         remote = some remote,
         transport = some erisTransport())
     peer = Peer(conn: preconn.initiate(), ready: newFuture[void]("addPeer"))
+  echo "connection intiated with ", remote
   peer.conn.onReady do ():
+    echo "connection ready"
     peer.ready.complete()
   initializeConnection(broker, peer.conn, serving = false)
   broker.peers.add(peer)
