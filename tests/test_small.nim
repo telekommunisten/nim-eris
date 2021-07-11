@@ -1,41 +1,25 @@
+import std/[asyncdispatch, json, unittest, strutils]
 import eris, ./jsonstores
-import base32
-import asyncdispatch, json, os, unittest, strutils
+
+import vectors
 
 suite "encode":
-  for path in walkPattern("eris/test-vectors/*.json"):
-    let js = parseFile(path)
-    test $js["id"].getInt:
-      checkpoint js["name"].getStr
-      checkpoint js["description"].getStr
-      let urn = js["urn"].getStr
-      checkpoint urn
+  for v in testVectors():
+    test v:
       let
-        cap = parseErisUrn(urn)
-        secret = parseSecret(js["convergence-secret"].getStr)
-        data = base32.decode(js["content"].getStr)
         store = newDiscardStore()
-
-      let testCap = waitFor store.encode(cap.blockSize, data, secret)
-      check($testCap == urn)
+        testCap = waitFor store.encode(v.cap.blockSize, v.data, v.secret)
+      check($testCap == v.urn)
 
 suite "decode":
-  for path in walkPattern("eris/test-vectors/*.json"):
-    let js = parseFile(path)
-    test $js["id"].getInt:
-      checkpoint js["name"].getStr
-      checkpoint js["description"].getStr
-      let urn = js["urn"].getStr
-      checkpoint urn
+  for v in testVectors():
+    test v:
       let
-        cap = parseErisUrn(urn)
-        secret = parseSecret(js["convergence-secret"].getStr)
-        b = base32.decode(js["content"].getStr)
-        store = newJsonStore(js)
-        stream = newErisStream(store, cap, secret)
+        store = newJsonStore(v.js)
+        stream = newErisStream(store, v.cap, v.secret)
         streamLength = waitFor stream.length()
-      check((streamLength - b.len) <= cap.blockSize)
+      check((streamLength - v.data.len) <= v.cap.blockSize)
       let a = waitFor stream.readAll()
-      check(a.len == b.len)
-      check(a.toHex == b.toHex)
-      assert(a == b, "decode mismatch")
+      check(a.len == v.data.len)
+      check(a.toHex == v.data.toHex)
+      assert(a == v.data, "decode mismatch")
