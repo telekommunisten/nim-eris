@@ -26,6 +26,7 @@ proc memoryGet(s: ErisStore; r: Reference): Future[seq[byte]] =
     result.fail(newException(IOError, $r & " not found"))
 
 proc newMemoryStore*(): MemoryErisStore =
+  ## Create a new ``ErisStore`` that holds its content in-memory.
   MemoryErisStore(
     table: initTable[Reference, seq[byte]](),
     putImpl: memoryPut,
